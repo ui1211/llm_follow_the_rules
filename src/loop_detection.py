@@ -19,6 +19,37 @@ def normalize_text(text: str | None) -> str:
     return re.sub(r"\s+", "", text or "")
 
 
+def has_repeated_line(
+    text: str | None,
+    *,
+    repeat_threshold: int = 3,
+) -> LoopCheckResult:
+    """Detect repeated non-empty lines before size-based loop checks."""
+
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+    if len(lines) < repeat_threshold:
+        return LoopCheckResult(False, "not_enough_lines")
+
+    current = lines[0]
+    count = 1
+    for line in lines[1:]:
+        if line == current:
+            count += 1
+            if count >= repeat_threshold:
+                return LoopCheckResult(True, f"repeated_line: count={count}")
+        else:
+            current = line
+            count = 1
+
+    seen: dict[str, int] = {}
+    for line in lines:
+        seen[line] = seen.get(line, 0) + 1
+        if seen[line] >= repeat_threshold:
+            return LoopCheckResult(True, f"repeated_line: count={seen[line]}")
+
+    return LoopCheckResult(False, "no_repeated_line")
+
+
 def has_repeated_block(
     text: str | None,
     *,
@@ -70,6 +101,10 @@ def has_tail_loop(
 
 def detect_loop(text: str | None, *, abnormal_size: int = 5000) -> LoopCheckResult:
     """Run loop checks only for unusually long responses."""
+
+    line_result = has_repeated_line(text)
+    if line_result.is_loop:
+        return line_result
 
     if len(text or "") < abnormal_size:
         return LoopCheckResult(False, "length_under_threshold")

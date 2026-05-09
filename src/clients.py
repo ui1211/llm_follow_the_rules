@@ -6,8 +6,8 @@ import json
 import random
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import Any, Protocol
 
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -22,21 +22,40 @@ class LLMClient(Protocol):
 
 
 @dataclass(frozen=True)
+class OllamaOptions:
+    temperature: float | None = None
+    repeat_penalty: float | None = None
+    num_predict: int | None = None
+    seed: int | None = None
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        if self.temperature is not None:
+            payload["temperature"] = self.temperature
+        if self.repeat_penalty is not None:
+            payload["repeat_penalty"] = self.repeat_penalty
+        if self.num_predict is not None:
+            payload["num_predict"] = self.num_predict
+        payload["seed"] = self.seed if self.seed is not None else random.randint(0, 2**31 - 1)
+        return payload
+
+
+@dataclass(frozen=True)
 class OllamaGenerateClient:
     """HTTP client for Ollama's non-streaming generate endpoint."""
 
     model: str = DEFAULT_MODEL
     url: str = DEFAULT_OLLAMA_URL
     timeout: float = 30.0
+    options: OllamaOptions = field(default_factory=OllamaOptions)
 
     def generate(self, prompt: str) -> str:
-        seed = random.randint(0, 2**31 - 1)
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False,
             "keep_alive": 0,
-            "options": {"seed": seed},
+            "options": self.options.to_payload(),
         }
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(

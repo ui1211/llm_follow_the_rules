@@ -8,6 +8,13 @@ def test_detect_loop_skips_short_text() -> None:
     assert result.reason == "length_under_threshold"
 
 
+def test_detect_loop_finds_short_line_repetition() -> None:
+    result = detect_loop("same line\nsame line\nsame line", abnormal_size=5000)
+
+    assert result.is_loop is True
+    assert result.reason.startswith("repeated_line:")
+
+
 def test_has_repeated_block_detects_exact_repetition() -> None:
     block = "a" * 80
     result = has_repeated_block(block * 3)

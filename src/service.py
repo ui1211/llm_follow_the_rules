@@ -23,6 +23,15 @@ class QualityCheckResult:
 
 
 @dataclass(frozen=True)
+class GenerationResult:
+    ok: bool
+    text: str
+    attempts: int
+    reason: str
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class GenerationConfig:
     max_retry: int = 3
     abnormal_size: int = 5000
@@ -106,7 +115,7 @@ class RuleFollowingGenerator:
         generator_client: LLMClient,
         checker_client: LLMClient | None = None,
         *,
-        restart_hook: RestartHook | None = restart_ollama_process,
+        restart_hook: RestartHook | None = None,
         config: GenerationConfig | None = None,
     ) -> None:
         self.generator_client = generator_client
@@ -114,7 +123,7 @@ class RuleFollowingGenerator:
         self.restart_hook = restart_hook
         self.config = config or GenerationConfig()
 
-    def ask(self, prompt: str, system_rule: str) -> str:
+    def generate(self, prompt: str, system_rule: str) -> GenerationResult:
         base_prompt = build_generation_prompt(prompt, system_rule)
         current_prompt = base_prompt
 
@@ -124,7 +133,8 @@ class RuleFollowingGenerator:
                 text = self.generator_client.generate(current_prompt)
             except Exception as exc:
                 logger.exception("generation failed")
-                return f"ERROR: GENERATION FAILED: {exc}"
+                error = f"GENERATION FAILED: {exc}"
+                return GenerationResult(False, "", attempt, "generation_failed", error)
 
             if not text.strip():
                 reason = "empty_output"
@@ -139,7 +149,7 @@ class RuleFollowingGenerator:
             )
             if result.ok:
                 logger.info("final output accepted on attempt %s", attempt)
-                return text
+                return GenerationResult(True, text, attempt, result.reason)
 
             logger.warning("retrying after failed quality check: %s", result.reason)
             if self.restart_hook is not None:
@@ -147,7 +157,19 @@ class RuleFollowingGenerator:
             current_prompt = build_retry_prompt(base_prompt, result.reason)
 
         logger.error("final output rejected: retry limit exceeded")
-        return "ERROR: RETRY LIMIT EXCEEDED"
+        return GenerationResult(
+            False,
+            "",
+            self.config.max_retry,
+            "retry_limit_exceeded",
+            "RETRY LIMIT EXCEEDED",
+        )
+
+    def ask(self, prompt: str, system_rule: str) -> str:
+        result = self.generate(prompt, system_rule)
+        if result.ok:
+            return result.text
+        return f"ERROR: {result.error}"
 
 
 def ask_llm(
@@ -158,7 +180,7 @@ def ask_llm(
     checker_client: LLMClient | None = None,
     max_retry: int = 3,
     abnormal_size: int = 5000,
-    restart_hook: RestartHook | None = restart_ollama_process,
+    restart_hook: RestartHook | None = None,
 ) -> str:
     """Compatibility function for existing callers."""
 

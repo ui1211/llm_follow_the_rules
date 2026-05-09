@@ -1,4 +1,4 @@
-from src.service import GenerationConfig, RuleFollowingGenerator, quality_check
+from src.service import GenerationConfig, RuleFollowingGenerator, ask_llm, quality_check
 
 
 class QueueClient:
@@ -37,6 +37,22 @@ def test_rule_following_generator_returns_first_accepted_output() -> None:
     assert len(checker_client.prompts) == 1
 
 
+def test_rule_following_generator_returns_structured_result() -> None:
+    generator = RuleFollowingGenerator(
+        QueueClient(["accepted"]),
+        QueueClient(['{"ok": true, "reason": "valid"}']),
+        restart_hook=None,
+    )
+
+    result = generator.generate("prompt", "rule")
+
+    assert result.ok is True
+    assert result.text == "accepted"
+    assert result.error is None
+    assert result.attempts == 1
+    assert result.reason == "all_checks_passed"
+
+
 def test_rule_following_generator_retries_after_rejected_output() -> None:
     generator_client = QueueClient(["bad", "good"])
     checker_client = QueueClient(
@@ -58,6 +74,21 @@ def test_rule_following_generator_retries_after_rejected_output() -> None:
     assert "前回の出力は品質チェックに失敗しました" in generator_client.prompts[1]
 
 
+def test_rule_following_generator_does_not_restart_by_default() -> None:
+    generator = RuleFollowingGenerator(
+        QueueClient(["bad", "good"]),
+        QueueClient(
+            [
+                '{"ok": false, "reason": "format mismatch"}',
+                '{"ok": true, "reason": "valid"}',
+            ]
+        ),
+        config=GenerationConfig(max_retry=2, abnormal_size=5000),
+    )
+
+    assert generator.ask("prompt", "rule") == "good"
+
+
 def test_rule_following_generator_returns_error_after_retry_limit() -> None:
     generator = RuleFollowingGenerator(
         QueueClient(["bad"]),
@@ -67,3 +98,15 @@ def test_rule_following_generator_returns_error_after_retry_limit() -> None:
     )
 
     assert generator.ask("prompt", "rule") == "ERROR: RETRY LIMIT EXCEEDED"
+
+
+def test_ask_llm_keeps_string_compatibility() -> None:
+    result = ask_llm(
+        "prompt",
+        "rule",
+        client=QueueClient(["accepted"]),
+        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        restart_hook=None,
+    )
+
+    assert result == "accepted"

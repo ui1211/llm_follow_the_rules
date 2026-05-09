@@ -29,7 +29,7 @@ ollama pull fredrezones55/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b
 現在の実行入口は Python API です。プロンプトとルール Markdown を渡すと、生成結果をループ検出と LLM 自己判定でチェックし、失敗時は再試行します。
 
 ```powershell
-uv run python -c "from src.call_llm import ask_llm, load_md; rule = load_md('rules/scenario_rule.md'); print(ask_llm('write one page scenario', rule))"
+uv run python -c "from src.call_llm import ask_llm, load_md; rule = load_md('examples/simple_rule.md'); print(ask_llm('write one page scenario', rule))"
 ```
 
 モデルや Ollama URL を変える場合は `OllamaGenerateClient` を明示します。
@@ -37,7 +37,7 @@ uv run python -c "from src.call_llm import ask_llm, load_md; rule = load_md('rul
 ```python
 from src.call_llm import OllamaGenerateClient, ask_llm, load_md
 
-rule = load_md("rules/scenario_rule.md")
+rule = load_md("examples/simple_rule.md")
 client = OllamaGenerateClient(
     model="your-model-name",
     url="http://localhost:11434/api/generate",

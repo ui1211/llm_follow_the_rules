@@ -51,7 +51,11 @@ def check_rule_with_llm(
     except (ValueError, TypeError) as exc:
         return RuleCheckResult(False, f"rule_check_parse_error: {exc}")
 
+    ok = parsed.get("ok", False)
+    if not isinstance(ok, bool):
+        return RuleCheckResult(False, "rule_check_invalid_ok_type")
+
     return RuleCheckResult(
-        ok=bool(parsed.get("ok", False)),
+        ok=ok,
         reason=str(parsed.get("reason", "no reason provided")),
     )

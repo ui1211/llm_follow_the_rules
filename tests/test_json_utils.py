@@ -17,6 +17,12 @@ def test_extract_json_object_from_noisy_text() -> None:
     }
 
 
+def test_extract_json_object_uses_first_valid_object() -> None:
+    raw = 'prefix {"ok": true, "reason": "first"} middle {"ok": false}'
+
+    assert extract_json_object(raw) == {"ok": True, "reason": "first"}
+
+
 def test_extract_json_object_rejects_missing_object() -> None:
     with pytest.raises(ValueError, match="json_object_not_found"):
         extract_json_object("no json here")
