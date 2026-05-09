@@ -160,3 +160,38 @@ def test_ask_llm_display_progress_logs_events_and_summary() -> None:
     assert "stage=attempt_start reason=1/2" in output
     assert "stage=quality_check reason=rule_failed: format mismatch" in output
     assert "[PASS] attempts=2 reason=all_checks_passed" in output
+
+
+def test_ask_llm_display_detail_logs_output_preview() -> None:
+    messages: list[str] = []
+    sink_id = logger.add(lambda message: messages.append(str(message)), format="{message}")
+    result = ask_llm(
+        "prompt",
+        "rule",
+        client=QueueClient(["line one\nline two"]),
+        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        display="detail",
+    )
+    logger.remove(sink_id)
+
+    output = "\n".join(messages)
+    assert result == "line one\nline two"
+    assert "[Output Preview]\nline one\nline two" in output
+
+
+def test_ask_llm_display_detail_truncates_output_preview() -> None:
+    messages: list[str] = []
+    sink_id = logger.add(lambda message: messages.append(str(message)), format="{message}")
+    result = ask_llm(
+        "prompt",
+        "rule",
+        client=QueueClient(["abcdef"]),
+        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        display="detail",
+        detail_preview_chars=3,
+    )
+    logger.remove(sink_id)
+
+    output = "\n".join(messages)
+    assert result == "abcdef"
+    assert "[Output Preview]\nabc\n...<truncated 3 chars>" in output

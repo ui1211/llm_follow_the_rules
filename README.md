@@ -75,7 +75,8 @@ ask_llm(
     max_retry: int = 3,
     abnormal_size: int = 5000,
     restart_hook: Callable[[str], None] | None = None,
-    display: Literal["none", "final", "progress"] = "none",
+    display: Literal["none", "final", "progress", "detail"] = "none",
+    detail_preview_chars: int = 4000,
 ) -> str
 ```
 
@@ -88,7 +89,8 @@ ask_llm(
 | `max_retry` | No | Maximum number of generation attempts, including the first attempt. |
 | `abnormal_size` | No | Output length threshold for expensive loop checks. Short repeated lines are checked regardless of this value. |
 | `restart_hook` | No | Optional callback called after a failed quality check. It receives the failure reason. Defaults to `None`, so no process restart is performed. |
-| `display` | No | Controls loguru display logs. `none` emits no display logs, `final` logs only the final summary, and `progress` logs per-attempt progress plus the final summary. |
+| `display` | No | Controls loguru display logs. `none` emits no display logs, `final` logs only the final summary, `progress` logs per-attempt progress plus the final summary, and `detail` also logs generated output previews. |
+| `detail_preview_chars` | No | Maximum number of generated-output characters to include in each `detail` preview. Set to `0` to suppress previews while keeping detail event logs. |
 
 Return value:
 
@@ -102,6 +104,7 @@ Display examples:
 ```python
 ask_llm("write one page scenario", rule, display="final")
 ask_llm("write one page scenario", rule, display="progress")
+ask_llm("write one page scenario", rule, display="detail", detail_preview_chars=8000)
 ```
 
 ### ask_llm 引数説明
@@ -117,7 +120,8 @@ ask_llm("write one page scenario", rule, display="progress")
 | `max_retry` | 任意 | 最大生成試行回数です。初回生成も回数に含みます。 |
 | `abnormal_size` | 任意 | 高コストなループ検出を実行する出力長のしきい値です。短い行の繰り返しは、この値に関係なく検出します。 |
 | `restart_hook` | 任意 | 品質チェック失敗後に呼ばれる任意のコールバックです。失敗理由の文字列を受け取ります。既定値は `None` なので、プロセス再起動などの副作用は発生しません。 |
-| `display` | 任意 | `loguru` による表示ログのモードです。`none` は表示ログを出しません。`final` は最終結果だけをログ出力します。`progress` は試行開始、生成完了、品質チェック結果、最終結果をログ出力します。 |
+| `display` | 任意 | `loguru` による表示ログのモードです。`none` は表示ログを出しません。`final` は最終結果だけをログ出力します。`progress` は試行開始、生成完了、品質チェック結果、最終結果をログ出力します。`detail` はさらに生成された出力本文のプレビューもログ出力します。 |
+| `detail_preview_chars` | 任意 | `display="detail"` のときに表示する生成出力プレビューの最大文字数です。`0` にすると、detail のイベントログは出しつつ本文プレビューは抑制します。 |
 
 戻り値:
 

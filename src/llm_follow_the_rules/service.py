@@ -15,7 +15,7 @@ from llm_follow_the_rules.prompt_templates import render_template
 from llm_follow_the_rules.rule_checker import RuleCheckResult, check_rule_with_llm
 
 RestartHook = Callable[[str], None]
-DisplayMode = Literal["none", "final", "progress"]
+DisplayMode = Literal["none", "final", "progress", "detail"]
 
 
 @dataclass(frozen=True)
@@ -41,6 +41,7 @@ class GenerationEvent:
     ok: bool | None
     reason: str
     response_length: int = 0
+    output_preview: str = ""
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class GenerationConfig:
     max_retry: int = 3
     abnormal_size: int = 5000
     display: DisplayMode = "none"
+    detail_preview_chars: int = 4000
 
 
 def restart_ollama_process(_: str) -> None:
@@ -92,6 +94,13 @@ def format_generation_event(event: GenerationEvent) -> str:
     )
 
 
+def format_generation_event_detail(event: GenerationEvent) -> str:
+    message = format_generation_event(event)
+    if event.output_preview:
+        message = f"{message}\n[Output Preview]\n{event.output_preview}"
+    return message
+
+
 def format_generation_result(result: GenerationResult) -> str:
     status = "PASS" if result.ok else "FAIL"
     error = f" error={result.error}" if result.error else ""
@@ -101,6 +110,24 @@ def format_generation_result(result: GenerationResult) -> str:
     )
 
 
+def _preview_text(text: str, limit: int) -> str:
+    if limit <= 0:
+        return ""
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}\n...<truncated {len(text) - limit} chars>"
+
+
+def _log_event(event: GenerationEvent, *, detail: bool) -> None:
+    message = format_generation_event_detail(event) if detail else format_generation_event(event)
+    if event.ok is True:
+        logger.success(message)
+    elif event.ok is False:
+        logger.warning(message)
+    else:
+        logger.info(message)
+
+
 def _append_event(
     events: list[GenerationEvent],
     event: GenerationEvent,
@@ -108,17 +135,12 @@ def _append_event(
     display: DisplayMode,
 ) -> None:
     events.append(event)
-    if display == "progress":
-        if event.ok is True:
-            logger.success(format_generation_event(event))
-        elif event.ok is False:
-            logger.warning(format_generation_event(event))
-        else:
-            logger.info(format_generation_event(event))
+    if display in {"progress", "detail"}:
+        _log_event(event, detail=display == "detail")
 
 
 def _finish_result(result: GenerationResult, *, display: DisplayMode) -> GenerationResult:
-    if display in {"final", "progress"}:
+    if display in {"final", "progress", "detail"}:
         if result.ok:
             logger.success(format_generation_result(result))
         else:
@@ -206,6 +228,7 @@ class RuleFollowingGenerator:
                     True,
                     "generation_done",
                     len(text or ""),
+                    _preview_text(text or "", self.config.detail_preview_chars),
                 ),
                 display=self.config.display,
             )
@@ -214,7 +237,13 @@ class RuleFollowingGenerator:
                 reason = "empty_output"
                 _append_event(
                     events,
-                    GenerationEvent(attempt, "quality_check", False, reason),
+                    GenerationEvent(
+                        attempt,
+                        "quality_check",
+                        False,
+                        reason,
+                        output_preview=_preview_text(text or "", self.config.detail_preview_chars),
+                    ),
                     display=self.config.display,
                 )
                 current_prompt = build_retry_prompt(base_prompt, reason)
@@ -235,6 +264,7 @@ class RuleFollowingGenerator:
                         True,
                         result.reason,
                         len(text or ""),
+                        _preview_text(text or "", self.config.detail_preview_chars),
                     ),
                     display=self.config.display,
                 )
@@ -257,6 +287,7 @@ class RuleFollowingGenerator:
                     False,
                     result.reason,
                     len(text or ""),
+                    _preview_text(text or "", self.config.detail_preview_chars),
                 ),
                 display=self.config.display,
             )
@@ -294,6 +325,7 @@ def ask_llm(
     abnormal_size: int = 5000,
     restart_hook: RestartHook | None = None,
     display: DisplayMode = "none",
+    detail_preview_chars: int = 4000,
 ) -> str:
     """Compatibility function for existing callers."""
 
@@ -305,6 +337,7 @@ def ask_llm(
             max_retry=max_retry,
             abnormal_size=abnormal_size,
             display=display,
+            detail_preview_chars=detail_preview_chars,
         ),
     )
     return generator.ask(prompt, system_rule)
