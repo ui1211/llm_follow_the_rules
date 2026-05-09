@@ -13,6 +13,7 @@ wheels/
 .redmine.toml
 
 AGENTS.md
+debug.py
 
 report/
 rules/

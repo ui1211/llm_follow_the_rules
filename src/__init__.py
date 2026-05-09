@@ -2,9 +2,10 @@
 
 from src.clients import OllamaGenerateClient
 from src.files import load_md
-from src.service import GenerationResult, RuleFollowingGenerator, ask_llm
+from src.service import GenerationEvent, GenerationResult, RuleFollowingGenerator, ask_llm
 
 __all__ = [
+    "GenerationEvent",
     "GenerationResult",
     "OllamaGenerateClient",
     "RuleFollowingGenerator",

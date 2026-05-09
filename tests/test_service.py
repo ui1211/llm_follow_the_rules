@@ -1,3 +1,5 @@
+from loguru import logger
+
 from src.service import GenerationConfig, RuleFollowingGenerator, ask_llm, quality_check
 
 
@@ -51,6 +53,12 @@ def test_rule_following_generator_returns_structured_result() -> None:
     assert result.error is None
     assert result.attempts == 1
     assert result.reason == "all_checks_passed"
+    assert [event.stage for event in result.events] == [
+        "attempt_start",
+        "generation",
+        "quality_check",
+    ]
+    assert result.events[-1].ok is True
 
 
 def test_rule_following_generator_retries_after_rejected_output() -> None:
@@ -71,7 +79,7 @@ def test_rule_following_generator_retries_after_rejected_output() -> None:
 
     assert generator.ask("prompt", "rule") == "good"
     assert restart_reasons == ["rule_failed: format mismatch"]
-    assert "前回の出力は品質チェックに失敗しました" in generator_client.prompts[1]
+    assert "The previous output failed the quality check." in generator_client.prompts[1]
 
 
 def test_rule_following_generator_does_not_restart_by_default() -> None:
@@ -110,3 +118,45 @@ def test_ask_llm_keeps_string_compatibility() -> None:
     )
 
     assert result == "accepted"
+
+
+def test_ask_llm_display_final_logs_only_summary() -> None:
+    messages: list[str] = []
+    sink_id = logger.add(lambda message: messages.append(str(message)), format="{message}")
+    result = ask_llm(
+        "prompt",
+        "rule",
+        client=QueueClient(["accepted"]),
+        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        display="final",
+    )
+    logger.remove(sink_id)
+
+    assert result == "accepted"
+    assert len(messages) == 1
+    assert "[PASS] attempts=1 reason=all_checks_passed" in messages[0]
+
+
+def test_ask_llm_display_progress_logs_events_and_summary() -> None:
+    messages: list[str] = []
+    sink_id = logger.add(lambda message: messages.append(str(message)), format="{message}")
+    result = ask_llm(
+        "prompt",
+        "rule",
+        client=QueueClient(["bad", "good"]),
+        checker_client=QueueClient(
+            [
+                '{"ok": false, "reason": "format mismatch"}',
+                '{"ok": true, "reason": "valid"}',
+            ]
+        ),
+        max_retry=2,
+        display="progress",
+    )
+    logger.remove(sink_id)
+
+    output = "\n".join(messages)
+    assert result == "good"
+    assert "stage=attempt_start reason=1/2" in output
+    assert "stage=quality_check reason=rule_failed: format mismatch" in output
+    assert "[PASS] attempts=2 reason=all_checks_passed" in output

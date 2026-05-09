@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from src.clients import LLMClient
 from src.json_utils import extract_json_object
+from src.prompt_templates import render_template
 
 
 @dataclass(frozen=True)
@@ -17,25 +18,7 @@ class RuleCheckResult:
 def build_rule_check_prompt(output: str, system_rule: str) -> str:
     """Build the prompt used to ask the checker LLM for a JSON verdict."""
 
-    return f"""
-あなたは検査器です。
-出力本文を修正せず、判定だけしてください。
-
-[System Rule]
-{system_rule}
-
-[Output]
-{output}
-
-[判定条件]
-- System Ruleに明確に違反していれば false
-- 判定不能、形式崩れ、余計な説明が多い場合も false
-- 問題がなければ true
-
-[Return Format]
-JSONのみを返してください。
-{{"ok": true, "reason": "..." }}
-"""
+    return render_template("rule_check.md", output=output, system_rule=system_rule)
 
 
 def check_rule_with_llm(

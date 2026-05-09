@@ -9,9 +9,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-
 DEFAULT_OLLAMA_URL = "http://localhost:11434/api/generate"
-DEFAULT_MODEL = "fredrezones55/Gemma-4-Uncensored-HauhauCS-Aggressive:e4b"
+DEFAULT_MODEL = "qwen3.5:9b"
 
 
 class LLMClient(Protocol):
