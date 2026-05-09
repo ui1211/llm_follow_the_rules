@@ -22,9 +22,9 @@ def normalize_text(text: str | None) -> str:
 def has_repeated_line(
     text: str | None,
     *,
-    repeat_threshold: int = 3,
+    repeat_threshold: int = 4,
 ) -> LoopCheckResult:
-    """Detect repeated non-empty lines before size-based loop checks."""
+    """Detect consecutive repeated non-empty lines."""
 
     lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
     if len(lines) < repeat_threshold:
@@ -40,12 +40,6 @@ def has_repeated_line(
         else:
             current = line
             count = 1
-
-    seen: dict[str, int] = {}
-    for line in lines:
-        seen[line] = seen.get(line, 0) + 1
-        if seen[line] >= repeat_threshold:
-            return LoopCheckResult(True, f"repeated_line: count={seen[line]}")
 
     return LoopCheckResult(False, "no_repeated_line")
 
@@ -65,17 +59,22 @@ def has_repeated_block(
         if len(normalized) < block_len * repeat_threshold:
             continue
 
-        seen: dict[str, int] = {}
+        previous = ""
+        count = 0
         for i in range(0, len(normalized) - block_len + 1, block_len):
             block = normalized[i : i + block_len]
-            seen[block] = seen.get(block, 0) + 1
-            if seen[block] >= repeat_threshold:
+            if block == previous:
+                count += 1
+            else:
+                previous = block
+                count = 1
+            if count >= repeat_threshold:
                 return LoopCheckResult(
                     True,
-                    f"repeated_exact_block_len={block_len}, count={seen[block]}",
+                    f"repeated_consecutive_block_len={block_len}, count={count}",
                 )
 
-    return LoopCheckResult(False, "no_repeated_block")
+    return LoopCheckResult(False, "no_consecutive_repeated_block")
 
 
 def has_tail_loop(
