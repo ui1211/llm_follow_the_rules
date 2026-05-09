@@ -3,7 +3,7 @@ from urllib.error import HTTPError
 
 import pytest
 
-from src.clients import OllamaGenerateClient, OllamaOptions
+from llm_follow_the_rules.clients import OllamaGenerateClient, OllamaOptions
 
 
 class FakeResponse:
@@ -28,7 +28,7 @@ def test_ollama_generate_client_uses_configured_options(monkeypatch: pytest.Monk
         captured["payload"] = json.loads(request.data.decode("utf-8"))  # type: ignore[attr-defined]
         return FakeResponse({"response": "ok"})
 
-    monkeypatch.setattr("src.clients.urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("llm_follow_the_rules.clients.urllib.request.urlopen", fake_urlopen)
     client = OllamaGenerateClient(
         model="model-a",
         timeout=12,
@@ -55,7 +55,7 @@ def test_ollama_generate_client_reports_http_error(monkeypatch: pytest.MonkeyPat
     def fake_urlopen(request: object, timeout: float) -> FakeResponse:
         raise HTTPError("url", 500, "server error", {}, None)
 
-    monkeypatch.setattr("src.clients.urllib.request.urlopen", fake_urlopen)
+    monkeypatch.setattr("llm_follow_the_rules.clients.urllib.request.urlopen", fake_urlopen)
 
     with pytest.raises(RuntimeError, match="HTTP 500"):
         OllamaGenerateClient().generate("prompt")

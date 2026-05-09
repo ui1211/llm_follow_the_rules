@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.clients import LLMClient
-from src.json_utils import extract_json_object
-from src.prompt_templates import render_template
+from llm_follow_the_rules.clients import LLMClient
+from llm_follow_the_rules.json_utils import extract_json_object
+from llm_follow_the_rules.prompt_templates import render_template
 
 
 @dataclass(frozen=True)

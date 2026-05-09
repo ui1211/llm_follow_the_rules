@@ -1,4 +1,4 @@
-from src.loop_detection import detect_loop, has_repeated_block, has_tail_loop
+from llm_follow_the_rules.loop_detection import detect_loop, has_repeated_block, has_tail_loop
 
 
 def test_detect_loop_skips_short_text() -> None:

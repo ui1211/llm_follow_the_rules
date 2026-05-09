@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from src.clients import DEFAULT_MODEL, DEFAULT_OLLAMA_URL, OllamaGenerateClient, OllamaOptions
-from src.files import load_md
-from src.service import GenerationEvent, GenerationResult, ask_llm
+from llm_follow_the_rules.clients import DEFAULT_MODEL, DEFAULT_OLLAMA_URL, OllamaGenerateClient, OllamaOptions
+from llm_follow_the_rules.files import load_md
+from llm_follow_the_rules.service import GenerationEvent, GenerationResult, ask_llm
 
 MODEL = DEFAULT_MODEL
 URL = DEFAULT_OLLAMA_URL

@@ -3,19 +3,22 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
+from importlib import resources
 from string import Formatter
 
 
-TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "prompts"
 _FORMATTER = Formatter()
 
 
 @lru_cache(maxsize=None)
 def load_template(name: str) -> str:
-    """Load a prompt template from the project prompts directory."""
+    """Load a bundled prompt template."""
 
-    return (TEMPLATE_DIR / name).read_text(encoding="utf-8")
+    return (
+        resources.files("llm_follow_the_rules")
+        .joinpath("prompts", name)
+        .read_text(encoding="utf-8")
+    )
 
 
 def render_template(name: str, **values: str) -> str:

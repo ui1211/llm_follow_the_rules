@@ -1,4 +1,4 @@
-from src.rule_checker import check_rule_with_llm
+from llm_follow_the_rules.rule_checker import check_rule_with_llm
 
 
 class FakeClient:

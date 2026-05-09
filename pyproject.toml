@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "llm-follow-the-rules"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.1.1"
+description = "Rule-following local LLM generation helpers"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -12,3 +16,15 @@ dependencies = [
 dev = [
     "pytest>=9.0.3",
 ]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+llm_follow_the_rules = ["prompts/*.md"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

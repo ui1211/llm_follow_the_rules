@@ -1,41 +1,55 @@
-# llm_follow_the_rules
+﻿# llm_follow_the_rules
 
-低性能なローカル LLM にプロンプトとルール Markdown を渡し、生成結果がルールを順守しているかを自己チェックしながら再試行するための実験プロジェクトです。
+Low-end local LLMs can drift, repeat themselves, or ignore detailed output rules. This library wraps generation with rule-based self-checking, retry prompts, loop detection, and optional progress logging.
 
-## Setup
+## Install
 
-Python 3.12 以上と `uv` を使用します。
+Python 3.12 or later is required.
+
+For local development:
 
 ```powershell
 uv sync
 ```
 
+Install from a Git repository in another project:
+
+```powershell
+uv add "llm-follow-the-rules @ git+https://github.com/<owner>/<repo>.git"
+```
+
+Install from this local Git repository:
+
+```powershell
+uv add "llm-follow-the-rules @ git+file:///C:/Users/yutou/Desktop/work/tools/llm_follow_the_rules"
+```
+
 ## Ollama
 
-既定では Ollama の generate API を使用します。
+By default, the library uses Ollama's generate API.
 
 - URL: `http://localhost:11434/api/generate`
-- model: `gemma4:e4b`
+- model: `qwen3.5:9b`
 
-Ollama を起動し、使用するモデルを事前に取得してください。
+Start Ollama and pull the model you want to use.
 
 ```powershell
 ollama serve
-ollama pull gemma4:e4b
+ollama pull qwen3.5:9b
 ```
 
 ## Run
 
-現在の実行入口は Python API です。プロンプトとルール Markdown を渡すと、生成結果をループ検出と LLM 自己判定でチェックし、失敗時は再試行します。
+The main API is `ask_llm`. Pass a user prompt and rule Markdown. The generated output is checked for repetition and rule compliance. Failed outputs are retried.
 
 ```powershell
-uv run python -c "from src.call_llm import ask_llm, load_md; rule = load_md('examples/simple_rule.md'); print(ask_llm('write one page scenario', rule))"
+uv run python -c "from llm_follow_the_rules import ask_llm, load_md; rule = load_md('examples/simple_rule.md'); print(ask_llm('write one page scenario', rule))"
 ```
 
-モデルや Ollama URL を変える場合は `OllamaGenerateClient` を明示します。
+Use `OllamaGenerateClient` to change the model or endpoint.
 
 ```python
-from src.call_llm import OllamaGenerateClient, ask_llm, load_md
+from llm_follow_the_rules import OllamaGenerateClient, ask_llm, load_md
 
 rule = load_md("examples/simple_rule.md")
 client = OllamaGenerateClient(
@@ -86,10 +100,7 @@ For structured success/failure details such as `ok`, `attempts`, `reason`, `erro
 Display examples:
 
 ```python
-# Log only the final summary.
 ask_llm("write one page scenario", rule, display="final")
-
-# Log attempt starts, generation completion, quality check results, and final summary.
 ask_llm("write one page scenario", rule, display="progress")
 ```
 
@@ -115,29 +126,19 @@ ask_llm("write one page scenario", rule, display="progress")
 
 成功/失敗、試行回数、失敗理由、各試行の履歴 `events` などを構造化して扱いたい場合は、`ask_llm` ではなく `RuleFollowingGenerator.generate()` を使ってください。
 
-表示例:
-
-```python
-# 最終結果だけを loguru で表示します。
-ask_llm("write one page scenario", rule, display="final")
-
-# 処理中の状況ログと最終結果を loguru で表示します。
-ask_llm("write one page scenario", rule, display="progress")
-```
-
 ## Prompt Templates
 
-LLM への固定指示は `prompts/` 配下の英語テンプレートで管理します。
+Fixed instructions sent to the LLM are bundled as English templates under `src/llm_follow_the_rules/prompts/`.
 
-- `prompts/generation.md`: 初回生成用
-- `prompts/retry.md`: 品質チェック失敗後の再試行用
-- `prompts/rule_check.md`: ルール準拠判定用
+- `generation.md`: first generation prompt
+- `retry.md`: retry prompt after quality-check failure
+- `rule_check.md`: rule-compliance judgement prompt
 
-業務ルールや出力フォーマットの指定は、別途 Markdown として `ask_llm` に渡します。
+Business rules and output-format requirements should be passed separately as Markdown through `ask_llm`.
 
 ## Test
 
-単体テストは外部 Ollama に依存しません。
+Unit tests do not require Ollama.
 
 ```powershell
 uv run pytest -q

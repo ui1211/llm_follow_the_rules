@@ -1,6 +1,6 @@
 import pytest
 
-from src.json_utils import extract_json_object
+from llm_follow_the_rules.json_utils import extract_json_object
 
 
 def test_extract_json_object_from_clean_json() -> None:

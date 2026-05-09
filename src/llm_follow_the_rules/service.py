@@ -9,10 +9,10 @@ from typing import Callable, Literal
 
 from loguru import logger
 
-from src.clients import LLMClient, OllamaGenerateClient
-from src.loop_detection import detect_loop
-from src.prompt_templates import render_template
-from src.rule_checker import RuleCheckResult, check_rule_with_llm
+from llm_follow_the_rules.clients import LLMClient, OllamaGenerateClient
+from llm_follow_the_rules.loop_detection import detect_loop
+from llm_follow_the_rules.prompt_templates import render_template
+from llm_follow_the_rules.rule_checker import RuleCheckResult, check_rule_with_llm
 
 RestartHook = Callable[[str], None]
 DisplayMode = Literal["none", "final", "progress"]

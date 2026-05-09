@@ -1,6 +1,6 @@
 import pytest
 
-from src.prompt_templates import render_template
+from llm_follow_the_rules.prompt_templates import render_template
 
 
 def test_render_template_inserts_values() -> None:

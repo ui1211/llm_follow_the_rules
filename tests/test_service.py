@@ -1,6 +1,6 @@
 from loguru import logger
 
-from src.service import GenerationConfig, RuleFollowingGenerator, ask_llm, quality_check
+from llm_follow_the_rules.service import GenerationConfig, RuleFollowingGenerator, ask_llm, quality_check
 
 
 class QueueClient:
