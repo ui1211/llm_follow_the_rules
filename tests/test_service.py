@@ -20,7 +20,7 @@ class QueueClient:
 
 
 def test_quality_check_fails_before_rule_check_when_loop_detected() -> None:
-    checker = QueueClient(['{"ok": true, "reason": "should not be used"}'])
+    checker = QueueClient(["PASS: should not be used"])
     output = "a" * 80 * 3
 
     result = quality_check(output, "rule", checker, abnormal_size=1)
@@ -30,18 +30,18 @@ def test_quality_check_fails_before_rule_check_when_loop_detected() -> None:
     assert checker.prompts == []
 
 
-def test_quality_check_accepts_output_when_rule_checker_parse_fails() -> None:
-    checker = QueueClient(["not-json"])
+def test_quality_check_fails_when_rule_checker_response_is_unclear() -> None:
+    checker = QueueClient(["unclear response"])
 
     result = quality_check("plain text output", "rule", checker)
 
-    assert result.ok is True
-    assert result.reason == "rule_check_inconclusive: checker_parse_error"
+    assert result.ok is False
+    assert result.reason == "rule_failed: rule_check_unparseable"
 
 
 def test_rule_following_generator_returns_first_accepted_output() -> None:
     generator_client = QueueClient(["accepted"])
-    checker_client = QueueClient(['{"ok": true, "reason": "valid"}'])
+    checker_client = QueueClient(["PASS: valid"])
     generator = RuleFollowingGenerator(
         generator_client,
         checker_client,
@@ -57,7 +57,7 @@ def test_rule_following_generator_returns_first_accepted_output() -> None:
 def test_rule_following_generator_returns_structured_result() -> None:
     generator = RuleFollowingGenerator(
         QueueClient(["accepted"]),
-        QueueClient(['{"ok": true, "reason": "valid"}']),
+        QueueClient(["PASS: valid"]),
         restart_hook=None,
     )
 
@@ -80,8 +80,8 @@ def test_rule_following_generator_retries_after_rejected_output() -> None:
     generator_client = QueueClient(["bad", "good"])
     checker_client = QueueClient(
         [
-            '{"ok": false, "reason": "format mismatch"}',
-            '{"ok": true, "reason": "valid"}',
+            "FAIL: format mismatch",
+            "PASS: valid",
         ]
     )
     restart_reasons: list[str] = []
@@ -108,9 +108,16 @@ def test_retry_prompt_does_not_request_json_when_validator_parse_fails() -> None
     assert "do not change the output format unless the System Rule requires it" in prompt
 
 
-def test_rule_following_generator_does_not_retry_when_rule_checker_parse_fails() -> None:
-    generator_client = QueueClient(["plain text output"])
-    checker_client = QueueClient(["not-json"])
+def test_retry_prompt_does_not_request_json_for_json_named_reasons() -> None:
+    prompt = build_retry_prompt("base prompt", "rule_failed: missing json field")
+
+    assert "Return only strict JSON" not in prompt
+    assert "Follow only the format required by the System Rule" in prompt
+
+
+def test_rule_following_generator_retries_without_json_hint_when_rule_checker_is_unclear() -> None:
+    generator_client = QueueClient(["plain text output", "fixed text output"])
+    checker_client = QueueClient(["unclear response", "PASS: valid"])
     generator = RuleFollowingGenerator(
         generator_client,
         checker_client,
@@ -120,10 +127,12 @@ def test_rule_following_generator_does_not_retry_when_rule_checker_parse_fails()
     result = generator.generate("prompt", "rule")
 
     assert result.ok is True
-    assert result.text == "plain text output"
-    assert result.reason == "rule_check_inconclusive: checker_parse_error"
-    assert len(generator_client.prompts) == 1
-    assert len(checker_client.prompts) == 1
+    assert result.text == "fixed text output"
+    assert result.reason == "all_checks_passed"
+    assert len(generator_client.prompts) == 2
+    assert "Return only strict JSON" not in generator_client.prompts[1]
+    assert "json_object_not_found" not in generator_client.prompts[1]
+    assert len(checker_client.prompts) == 2
 
 
 def test_rule_following_generator_does_not_restart_by_default() -> None:
@@ -131,8 +140,8 @@ def test_rule_following_generator_does_not_restart_by_default() -> None:
         QueueClient(["bad", "good"]),
         QueueClient(
             [
-                '{"ok": false, "reason": "format mismatch"}',
-                '{"ok": true, "reason": "valid"}',
+                "FAIL: format mismatch",
+                "PASS: valid",
             ]
         ),
         config=GenerationConfig(max_retry=2, abnormal_size=5000),
@@ -144,7 +153,7 @@ def test_rule_following_generator_does_not_restart_by_default() -> None:
 def test_rule_following_generator_returns_error_after_retry_limit() -> None:
     generator = RuleFollowingGenerator(
         QueueClient(["bad"]),
-        QueueClient(['{"ok": false, "reason": "invalid"}']),
+        QueueClient(["FAIL: invalid"]),
         restart_hook=None,
         config=GenerationConfig(max_retry=1, abnormal_size=5000),
     )
@@ -157,7 +166,7 @@ def test_ask_llm_keeps_string_compatibility() -> None:
         "prompt",
         "rule",
         client=QueueClient(["accepted"]),
-        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        checker_client=QueueClient(["PASS: valid"]),
         restart_hook=None,
     )
 
@@ -171,7 +180,7 @@ def test_ask_llm_display_final_logs_only_summary() -> None:
         "prompt",
         "rule",
         client=QueueClient(["accepted"]),
-        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        checker_client=QueueClient(["PASS: valid"]),
         display="final",
     )
     logger.remove(sink_id)
@@ -190,8 +199,8 @@ def test_ask_llm_display_progress_logs_events_and_summary() -> None:
         client=QueueClient(["bad", "good"]),
         checker_client=QueueClient(
             [
-                '{"ok": false, "reason": "format mismatch"}',
-                '{"ok": true, "reason": "valid"}',
+                "FAIL: format mismatch",
+                "PASS: valid",
             ]
         ),
         max_retry=2,
@@ -213,7 +222,7 @@ def test_ask_llm_display_detail_logs_output_preview() -> None:
         "prompt",
         "rule",
         client=QueueClient(["line one\nline two"]),
-        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        checker_client=QueueClient(["PASS: valid"]),
         display="detail",
     )
     logger.remove(sink_id)
@@ -230,7 +239,7 @@ def test_ask_llm_display_detail_truncates_output_preview() -> None:
         "prompt",
         "rule",
         client=QueueClient(["abcdef"]),
-        checker_client=QueueClient(['{"ok": true, "reason": "valid"}']),
+        checker_client=QueueClient(["PASS: valid"]),
         display="detail",
         detail_preview_chars=3,
     )

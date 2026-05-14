@@ -65,7 +65,7 @@ print(result)
 
 The default Ollama client sends `keep_alive=0`, so Ollama can unload the model after each request. This keeps memory usage low and preserves the original local-friendly behavior.
 
-Rule checking is mandatory. To reduce latency, make the checker response short and structured, and optionally keep only the checker model loaded for a short time:
+Rule checking is mandatory. To reduce latency, make the checker response short and optionally keep only the checker model loaded for a short time:
 
 ```python
 from llm_follow_the_rules import OllamaGenerateClient, OllamaOptions, ask_llm, load_md
@@ -73,7 +73,6 @@ from llm_follow_the_rules import OllamaGenerateClient, OllamaOptions, ask_llm, l
 rule = load_md("examples/simple_rule.md")
 client = OllamaGenerateClient()
 checker_client = OllamaGenerateClient(
-    format="json",
     keep_alive="5m",
     options=OllamaOptions(temperature=0, num_predict=128, num_ctx=2048),
 )

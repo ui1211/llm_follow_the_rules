@@ -68,15 +68,15 @@ def build_retry_prompt(base_prompt: str, reason: str) -> str:
     prompt_reason = reason
     if "tail_similarity" in reason or "repeated" in reason:
         hint = "Part of the output is repeated. Remove duplicated content."
-    elif "rule_check_parse_error" in reason:
-        prompt_reason = "rule_check_parse_error"
+    elif "rule_check_parse_error" in reason or "rule_check_unparseable" in reason:
+        prompt_reason = "rule_check_unparseable"
         hint = (
             "The validator could not return a clear judgement. Regenerate the "
             "answer according to the System Rule, and do not change the output "
             "format unless the System Rule requires it."
         )
     elif "json" in reason:
-        hint = "The JSON format is invalid. Return only strict JSON."
+        hint = "The output format is invalid. Follow only the format required by the System Rule."
     elif "empty" in reason:
         hint = "The output was empty. Generate non-empty content."
     elif "rule" in reason:
