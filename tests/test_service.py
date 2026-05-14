@@ -1,6 +1,12 @@
 from loguru import logger
 
-from llm_follow_the_rules.service import GenerationConfig, RuleFollowingGenerator, ask_llm, quality_check
+from llm_follow_the_rules.service import (
+    GenerationConfig,
+    RuleFollowingGenerator,
+    ask_llm,
+    build_retry_prompt,
+    quality_check,
+)
 
 
 class QueueClient:
@@ -80,6 +86,16 @@ def test_rule_following_generator_retries_after_rejected_output() -> None:
     assert generator.ask("prompt", "rule") == "good"
     assert restart_reasons == ["rule_failed: format mismatch"]
     assert "The previous output failed the quality check." in generator_client.prompts[1]
+
+
+def test_retry_prompt_does_not_request_json_when_validator_parse_fails() -> None:
+    prompt = build_retry_prompt(
+        "base prompt",
+        "rule_failed: rule_check_parse_error: json_object_not_found",
+    )
+
+    assert "Return only strict JSON" not in prompt
+    assert "do not change the output format unless the System Rule requires it" in prompt
 
 
 def test_rule_following_generator_does_not_restart_by_default() -> None:
