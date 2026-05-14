@@ -32,7 +32,15 @@ def test_ollama_generate_client_uses_configured_options(monkeypatch: pytest.Monk
     client = OllamaGenerateClient(
         model="model-a",
         timeout=12,
-        options=OllamaOptions(temperature=0.2, repeat_penalty=1.3, num_predict=128, seed=7),
+        format="json",
+        options=OllamaOptions(
+            temperature=0.2,
+            top_p=0.9,
+            repeat_penalty=1.3,
+            num_predict=128,
+            num_ctx=2048,
+            seed=7,
+        ),
     )
 
     assert client.generate("prompt") == "ok"
@@ -42,10 +50,34 @@ def test_ollama_generate_client_uses_configured_options(monkeypatch: pytest.Monk
         "prompt": "prompt",
         "stream": False,
         "keep_alive": 0,
+        "format": "json",
         "options": {
             "temperature": 0.2,
+            "top_p": 0.9,
             "repeat_penalty": 1.3,
             "num_predict": 128,
+            "num_ctx": 2048,
+            "seed": 7,
+        },
+    }
+
+
+def test_ollama_generate_client_can_keep_model_loaded(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request: object, timeout: float) -> FakeResponse:
+        captured["payload"] = json.loads(request.data.decode("utf-8"))  # type: ignore[attr-defined]
+        return FakeResponse({"response": "ok"})
+
+    monkeypatch.setattr("llm_follow_the_rules.clients.urllib.request.urlopen", fake_urlopen)
+
+    assert OllamaGenerateClient(keep_alive="5m", options=OllamaOptions(seed=7)).generate("prompt") == "ok"
+    assert captured["payload"] == {
+        "model": "qwen3.5:9b",
+        "prompt": "prompt",
+        "stream": False,
+        "keep_alive": "5m",
+        "options": {
             "seed": 7,
         },
     }

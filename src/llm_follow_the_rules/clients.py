@@ -23,18 +23,24 @@ class LLMClient(Protocol):
 @dataclass(frozen=True)
 class OllamaOptions:
     temperature: float | None = None
+    top_p: float | None = None
     repeat_penalty: float | None = None
     num_predict: int | None = None
+    num_ctx: int | None = None
     seed: int | None = None
 
     def to_payload(self) -> dict[str, Any]:
         payload: dict[str, Any] = {}
         if self.temperature is not None:
             payload["temperature"] = self.temperature
+        if self.top_p is not None:
+            payload["top_p"] = self.top_p
         if self.repeat_penalty is not None:
             payload["repeat_penalty"] = self.repeat_penalty
         if self.num_predict is not None:
             payload["num_predict"] = self.num_predict
+        if self.num_ctx is not None:
+            payload["num_ctx"] = self.num_ctx
         payload["seed"] = self.seed if self.seed is not None else random.randint(0, 2**31 - 1)
         return payload
 
@@ -46,6 +52,8 @@ class OllamaGenerateClient:
     model: str = DEFAULT_MODEL
     url: str = DEFAULT_OLLAMA_URL
     timeout: float = 30.0
+    keep_alive: str | int = 0
+    format: str | dict[str, Any] | None = None
     options: OllamaOptions = field(default_factory=OllamaOptions)
 
     def generate(self, prompt: str) -> str:
@@ -53,9 +61,11 @@ class OllamaGenerateClient:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "keep_alive": 0,
+            "keep_alive": self.keep_alive,
             "options": self.options.to_payload(),
         }
+        if self.format is not None:
+            payload["format"] = self.format
         body = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
             self.url,
