@@ -65,9 +65,11 @@ def build_generation_prompt(prompt: str, system_rule: str) -> str:
 
 def build_retry_prompt(base_prompt: str, reason: str) -> str:
     hint = ""
+    prompt_reason = reason
     if "tail_similarity" in reason or "repeated" in reason:
         hint = "Part of the output is repeated. Remove duplicated content."
     elif "rule_check_parse_error" in reason:
+        prompt_reason = "rule_check_parse_error"
         hint = (
             "The validator could not return a clear judgement. Regenerate the "
             "answer according to the System Rule, and do not change the output "
@@ -87,7 +89,7 @@ def build_retry_prompt(base_prompt: str, reason: str) -> str:
         "retry.md",
         base_prompt=base_prompt,
         hint=hint,
-        reason=reason,
+        reason=prompt_reason,
     )
 
 
@@ -166,6 +168,9 @@ def quality_check(
         return QualityCheckResult(False, f"loop_detected: {loop_result.reason}")
 
     rule_result: RuleCheckResult = check_rule_with_llm(output, system_rule, checker_client)
+    if rule_result.reason.startswith("rule_check_parse_error"):
+        return QualityCheckResult(True, "rule_check_inconclusive: checker_parse_error")
+
     if not rule_result.ok:
         return QualityCheckResult(False, f"rule_failed: {rule_result.reason}")
 

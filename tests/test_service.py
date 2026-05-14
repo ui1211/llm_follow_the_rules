@@ -30,6 +30,15 @@ def test_quality_check_fails_before_rule_check_when_loop_detected() -> None:
     assert checker.prompts == []
 
 
+def test_quality_check_accepts_output_when_rule_checker_parse_fails() -> None:
+    checker = QueueClient(["not-json"])
+
+    result = quality_check("plain text output", "rule", checker)
+
+    assert result.ok is True
+    assert result.reason == "rule_check_inconclusive: checker_parse_error"
+
+
 def test_rule_following_generator_returns_first_accepted_output() -> None:
     generator_client = QueueClient(["accepted"])
     checker_client = QueueClient(['{"ok": true, "reason": "valid"}'])
@@ -95,7 +104,26 @@ def test_retry_prompt_does_not_request_json_when_validator_parse_fails() -> None
     )
 
     assert "Return only strict JSON" not in prompt
+    assert "json_object_not_found" not in prompt
     assert "do not change the output format unless the System Rule requires it" in prompt
+
+
+def test_rule_following_generator_does_not_retry_when_rule_checker_parse_fails() -> None:
+    generator_client = QueueClient(["plain text output"])
+    checker_client = QueueClient(["not-json"])
+    generator = RuleFollowingGenerator(
+        generator_client,
+        checker_client,
+        config=GenerationConfig(max_retry=2, abnormal_size=5000),
+    )
+
+    result = generator.generate("prompt", "rule")
+
+    assert result.ok is True
+    assert result.text == "plain text output"
+    assert result.reason == "rule_check_inconclusive: checker_parse_error"
+    assert len(generator_client.prompts) == 1
+    assert len(checker_client.prompts) == 1
 
 
 def test_rule_following_generator_does_not_restart_by_default() -> None:
